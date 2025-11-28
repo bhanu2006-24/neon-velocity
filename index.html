@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Velocity 3D: Ultimate</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Top Bar */
+        .hud-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+        }
+
+        .hud-item {
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        #score-container {
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            min-width: 150px;
+        }
+
+        #multiplier-container {
+            color: #ffaa00;
+            font-size: 30px;
+            text-shadow: 0 0 15px #ffaa00;
+            font-style: italic;
+        }
+
+        #health-container {
+            color: #ff3e3e;
+            text-shadow: 0 0 10px #ff3e3e;
+            min-width: 150px;
+            text-align: right;
+        }
+
+        #nitro-wrapper {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            text-align: center;
+            color: #ffaa00;
+            text-shadow: 0 0 10px #ffaa00;
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        #nitro-bar-bg {
+            width: 100%;
+            height: 15px;
+            background: #221100;
+            border: 2px solid #553300;
+            margin-top: 5px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #nitro-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ffaa00, #ffff00);
+            box-shadow: 0 0 15px #ffaa00;
+            transform-origin: left;
+            transform: scaleX(0);
+            transition: transform 0.1s;
+        }
+
+        #speed-container {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff;
+            text-align: right;
+            font-size: 20px;
+        }
+
+        .screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 10, 20, 0.95);
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            padding: 40px;
+            text-align: center;
+            color: white;
+            border-radius: 8px;
+            pointer-events: auto;
+            display: none;
+            min-width: 320px;
+            z-index: 10;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 3rem;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            background: -webkit-linear-gradient(#00ffff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            margin: 10px 0 30px 0;
+            color: #aaa;
+        }
+
+        button {
+            background: transparent;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+
+        button:hover {
+            background: #00ffff;
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+        }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px black;
+        }
+
+        .float-text {
+            position: absolute;
+            font-weight: bold;
+            font-size: 24px;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+            text-shadow: 0 0 10px #000;
+            white-space: nowrap;
+        }
+
+        @keyframes floatUp {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0;
+            }
+
+            20% {
+                transform: translate(-50%, -100%) scale(1.2);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(-50%, -300%) scale(1);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="ui-layer">
+        <div class="hud-bar">
+            <div id="score-container">SCORE: <span id="score">0</span></div>
+            <div id="multiplier-container">x<span id="multiplier">1</span></div>
+            <div id="health-container">SHIELD: <span id="health">100</span>%</div>
+        </div>
+
+        <div id="speed-container"><span id="speed">0</span> KM/H</div>
+
+        <div id="nitro-wrapper">
+            NITRO
+            <div id="nitro-bar-bg">
+                <div id="nitro-bar-fill"></div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="screen active">
+            <h1>Neon Velocity</h1>
+            <p>V 5.0 // ULTIMATE</p>
+            <p style="font-size: 0.9rem; color: #00ffff;">
+                Hold SPACE to Boost (Invincible + Magnet).<br>
+                Collect <span style="color:#00ff00">Green Cubes</span> to Repair Shield.<br>
+                Pass cars closely for <span style="color:#fff">Near Miss</span> bonus.
+            </p>
+            <button onclick="startGame()">Ignition</button>
+        </div>
+
+        <div id="game-over-screen" class="screen">
+            <h1>Wasted</h1>
+            <p>Score: <span id="final-score">0</span></p>
+            <button onclick="resetGame()">Reboot System</button>
+        </div>
+
+        <div id="controls-hint">Desktop: Arrow Keys + Space &nbsp;|&nbsp; Mobile: Tap Sides</div>
+    </div>
+
+    <script>
+        // --- 1. SETUP THREE.JS SCENE ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000510, 0.005);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 4, 8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- 2. LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(20, 40, -10);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- 3. ASSETS & HELPERS ---
+
+        function createRoadTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const context = canvas.getContext('2d');
+
+            context.fillStyle = '#111';
+            context.fillRect(0, 0, 512, 512);
+
+            for (let i = 0; i < 8000; i++) {
+                context.fillStyle = Math.random() > 0.5 ? '#222' : '#050505';
+                context.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+            }
+
+            context.fillStyle = '#fff';
+            context.fillRect(245, 0, 5, 512);
+            context.fillRect(262, 0, 5, 512);
+
+            context.fillStyle = 'rgba(255,255,255,0.5)';
+            context.fillRect(128, 0, 4, 512);
+            context.fillRect(384, 0, 4, 512);
+
+            context.fillStyle = '#cc0000';
+            context.fillRect(0, 0, 20, 512);
+            context.fillRect(492, 0, 20, 512);
+
+            context.fillStyle = '#ffffff';
+            for (let i = 0; i < 10; i++) {
+                context.fillRect(0, i * 50, 20, 25);
+                context.fillRect(492, i * 50, 20, 25);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(1, 10);
+            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            return texture;
+        }
+
+        // --- 4. GAME OBJECTS ---
+
+        const roadGeometry = new THREE.PlaneGeometry(30, 600);
+        const roadTexture = createRoadTexture();
+        const roadMaterial = new THREE.MeshStandardMaterial({
+            map: roadTexture,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        road.position.z = -200;
+        road.receiveShadow = true;
+        scene.add(road);
+
+        const gridHelper = new THREE.GridHelper(800, 200, 0x550055, 0x050510);
+        gridHelper.position.z = -200;
+        gridHelper.position.y = -0.2;
+        scene.add(gridHelper);
+
+        // --- BUILDER FUNCTIONS ---
+
+        function createCar(color, isPlayer = false) {
+            const carGroup = new THREE.Group();
+
+            // Main Body
+            const bodyGeo = new THREE.BoxGeometry(1.6, 0.6, 3.8);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.2,
+                metalness: 0.7,
+                transparent: isPlayer,
+                opacity: 1.0
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.6;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            carGroup.add(body);
+
+            if (isPlayer) carGroup.bodyMesh = body;
+
+            // Cabin
+            const cabinGeo = new THREE.BoxGeometry(1.3, 0.45, 1.8);
+            const cabinMat = new THREE.MeshStandardMaterial({
+                color: 0x111111,
+                roughness: 0.1,
+                metalness: 0.9,
+                transparent: isPlayer,
+                opacity: 1.0
+            });
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.y = 1.0;
+            cabin.position.z = -0.4;
+            carGroup.add(cabin);
+
+            // Wheels
+            const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.4, 16);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const positions = [
+                { x: -0.9, z: 1.2 }, { x: 0.9, z: 1.2 },
+                { x: -0.9, z: -1.2 }, { x: 0.9, z: -1.2 }
+            ];
+            positions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(pos.x, 0.35, pos.z);
+                carGroup.add(wheel);
+            });
+
+            // Tail Lights
+            const tailGeo = new THREE.BoxGeometry(0.3, 0.1, 0.1);
+            const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const tailL = new THREE.Mesh(tailGeo, tailMat);
+            const tailR = new THREE.Mesh(tailGeo, tailMat);
+            tailL.position.set(-0.5, 0.7, 1.91);
+            tailR.position.set(0.5, 0.7, 1.91);
+            carGroup.add(tailL);
+            carGroup.add(tailR);
+
+            return carGroup;
+        }
+
+        function createBuilding() {
+            const height = 15 + Math.random() * 50;
+            const width = 8 + Math.random() * 15;
+            const depth = 8 + Math.random() * 15;
+            const geo = new THREE.BoxGeometry(width, height, depth);
+            const mat = new THREE.MeshLambertMaterial({ color: 0x101015 });
+            const building = new THREE.Mesh(geo, mat);
+
+            const stripCount = Math.floor(Math.random() * 3) + 1;
+            for (let i = 0; i < stripCount; i++) {
+                const stripGeo = new THREE.PlaneGeometry(width * 0.8, 0.5);
+                const color = Math.random() > 0.5 ? 0x00ffff : 0xff00ff;
+                const stripMat = new THREE.MeshBasicMaterial({ color: color });
+                const strip = new THREE.Mesh(stripGeo, stripMat);
+                strip.position.z = depth / 2 + 0.05;
+                strip.position.y = (Math.random() - 0.5) * height * 0.7;
+                building.add(strip);
+            }
+            return building;
+        }
+
+        function createCollectible() {
+            const geo = new THREE.IcosahedronGeometry(0.5, 0);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true });
+            const mesh = new THREE.Mesh(geo, mat);
+            const coreGeo = new THREE.IcosahedronGeometry(0.2, 0);
+            const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            mesh.add(core);
+            return mesh;
+        }
+
+        function createRepairKit() {
+            const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+            const mesh = new THREE.Mesh(geo, mat);
+            const coreGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+            const coreMat = new THREE.MeshBasicMaterial({ color: 0xccffcc });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            mesh.add(core);
+            return mesh;
+        }
+
+        function createParticle(x, y, z, color) {
+            const geo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+            const mat = new THREE.MeshBasicMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.rotation.x = Math.random() * Math.PI;
+            mesh.rotation.y = Math.random() * Math.PI;
+            return {
+                mesh: mesh,
+                vx: (Math.random() - 0.5) * 0.8,
+                vy: Math.random() * 0.8,
+                vz: (Math.random() - 0.5) * 0.8,
+                life: 1.0
+            };
+        }
+
+        function createSpeedLine() {
+            const geo = new THREE.BoxGeometry(0.05, 0.05, 5);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+            const mesh = new THREE.Mesh(geo, mat);
+            const rad = 5 + Math.random() * 10;
+            const angle = Math.random() * Math.PI * 2;
+            mesh.position.set(Math.cos(angle) * rad, 2 + Math.sin(angle) * rad, -50 - Math.random() * 50);
+            return mesh;
+        }
+
+        // --- GAME STATE ---
+        const playerCar = createCar(0x00ffff, true);
+        scene.add(playerCar);
+
+        const headLight = new THREE.SpotLight(0xffffff, 2.5, 80, 0.6, 0.5, 1);
+        headLight.position.set(0, 3, 0);
+        headLight.target.position.set(0, 0, -20);
+        playerCar.add(headLight);
+        playerCar.add(headLight.target);
+
+        // Arrays
+        let enemies = [];
+        let scenery = [];
+        let collectibles = [];
+        let particles = [];
+        let speedLines = [];
+
+        // State Vars
+        let gameState = 'MENU';
+        let speed = 0;
+        let score = 0;
+        let multiplier = 1;
+        let health = 3;
+        let nitro = 0;
+        let isNitroActive = false;
+        let playerX = 0;
+        let baseFov = 60;
+        let timeOfDay = 0;
+
+        const LANE_WIDTH = 4.0;
+        const MAX_SPEED = 2.2;
+        const NITRO_SPEED = 3.5;
+
+        // --- INPUT ---
+        const keys = { ArrowLeft: false, ArrowRight: false, ArrowUp: false, " ": false };
+        window.addEventListener('keydown', (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
+        window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches[0].clientX < window.innerWidth / 2) keys.ArrowLeft = true;
+            else keys.ArrowRight = true;
+        });
+        window.addEventListener('touchend', () => { keys.ArrowLeft = false; keys.ArrowRight = false; });
+
+        // --- LOGIC ---
+
+        function startGame() {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('game-over-screen').classList.remove('active');
+            resetGameInternal();
+            gameState = 'PLAYING';
+        }
+
+        function resetGame() {
+            startGame();
+        }
+
+        function resetGameInternal() {
+            speed = 0.5;
+            score = 0;
+            multiplier = 1;
+            health = 3;
+            nitro = 50;
+            playerX = 0;
+            updateUI();
+
+            playerCar.position.set(0, 0, 0);
+            playerCar.rotation.set(0, 0, 0);
+
+            [...enemies, ...scenery, ...collectibles, ...speedLines].forEach(o => scene.remove(o.mesh || o));
+            particles.forEach(p => scene.remove(p.mesh));
+
+            enemies = [];
+            scenery = [];
+            collectibles = [];
+            particles = [];
+            speedLines = [];
+
+            for (let i = 0; i < 30; i++) spawnScenery(-i * 20);
+        }
+
+        function showFloatingText(text, x, y, color = '#ffaa00') {
+            const div = document.createElement('div');
+            div.className = 'float-text';
+            div.innerText = text;
+            div.style.color = color;
+            div.style.left = (window.innerWidth / 2 + x * 20) + 'px';
+            div.style.top = '40%';
+            document.getElementById('ui-layer').appendChild(div);
+            setTimeout(() => div.remove(), 1000);
+        }
+
+        function updateUI() {
+            document.getElementById('score').innerText = Math.floor(score);
+            document.getElementById('multiplier').innerText = multiplier.toFixed(1);
+
+            const h = document.getElementById('health');
+            h.innerText = Math.max(0, Math.floor((health / 3) * 100));
+            h.style.color = health === 1 ? 'red' : (health === 2 ? 'orange' : '#00ffff');
+
+            document.getElementById('nitro-bar-fill').style.transform = `scaleX(${nitro / 100})`;
+            document.getElementById('speed').innerText = Math.floor(speed * 300);
+        }
+
+        function getLaneX(laneIndex) { return laneIndex * LANE_WIDTH; }
+
+        function spawnEnemy(zPos) {
+            const laneIndex = Math.floor(Math.random() * 3) - 1;
+            const laneX = getLaneX(laneIndex);
+            if (enemies.some(e => Math.abs(e.mesh.position.z - zPos) < 20 && Math.abs(e.mesh.position.x - laneX) < 2)) return;
+
+            const color = [0xff0000, 0xffaa00, 0x9900ff, 0x00ff00][Math.floor(Math.random() * 4)];
+            const mesh = createCar(color);
+            mesh.position.set(laneX, 0, zPos);
+            scene.add(mesh);
+            enemies.push({ mesh, speed: 0.3 + Math.random() * 0.2, active: true });
+        }
+
+        function spawnCollectible(zPos) {
+            const laneIndex = Math.floor(Math.random() * 3) - 1;
+            const laneX = getLaneX(laneIndex);
+
+            // 15% Chance to spawn a Repair Kit if health is low, else 5%
+            const needsHealth = health < 3;
+            const isRepair = Math.random() < (needsHealth ? 0.2 : 0.05);
+
+            const mesh = isRepair ? createRepairKit() : createCollectible();
+            mesh.position.set(laneX, 1.0, zPos);
+            scene.add(mesh);
+            collectibles.push({ mesh, active: true, type: isRepair ? 'repair' : 'score' });
+        }
+
+        function spawnScenery(zPos) {
+            if (Math.random() > 0.3) {
+                const b = createBuilding();
+                b.position.set(-18 - Math.random() * 20, b.geometry.parameters.height / 2, zPos);
+                scene.add(b);
+                scenery.push({ mesh: b });
+            }
+            if (Math.random() > 0.3) {
+                const b = createBuilding();
+                b.position.set(18 + Math.random() * 20, b.geometry.parameters.height / 2, zPos);
+                scene.add(b);
+                scenery.push({ mesh: b });
+            }
+        }
+
+        function spawnExplosion(x, y, z, color) {
+            for (let i = 0; i < 12; i++) {
+                const p = createParticle(x, y, z, color);
+                scene.add(p.mesh);
+                particles.push(p);
+            }
+        }
+
+        // --- UPDATE LOOP ---
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // 1. Controls & Nitro
+            isNitroActive = (keys[" "] || keys.ArrowUp) && nitro > 0;
+            let currentMaxSpeed = isNitroActive ? NITRO_SPEED : MAX_SPEED;
+
+            // Visual Invulnerability
+            if (playerCar.bodyMesh) {
+                if (isNitroActive) {
+                    const pulse = 0.5 + Math.sin(Date.now() * 0.02) * 0.3;
+                    playerCar.bodyMesh.material.opacity = pulse;
+                    playerCar.bodyMesh.material.color.setHex(0xffaa00);
+                } else {
+                    playerCar.bodyMesh.material.opacity = 1.0;
+                    playerCar.bodyMesh.material.color.setHex(0x00ffff);
+                }
+            }
+
+            if (isNitroActive) {
+                nitro -= 0.5;
+                speed += 0.05;
+                camera.position.x += (Math.random() - 0.5) * 0.3;
+                if (Math.random() > 0.5) {
+                    const line = createSpeedLine();
+                    scene.add(line);
+                    speedLines.push(line);
+                }
+            } else {
+                nitro += 0.05;
+                speed += 0.001;
+            }
+
+            nitro = Math.max(0, Math.min(100, nitro));
+            if (speed > currentMaxSpeed) speed -= 0.02;
+
+            // 2. Day/Night Cycle
+            timeOfDay += 0.0005;
+            const cycle = Math.sin(timeOfDay) * 0.5 + 0.5;
+            const nightColor = new THREE.Color(0x000510);
+            const dayColor = new THREE.Color(0x00aabb);
+            const lerpedColor = nightColor.clone().lerp(dayColor, cycle * 0.5);
+            scene.fog.color.copy(lerpedColor);
+            renderer.setClearColor(lerpedColor);
+            ambientLight.intensity = 0.2 + cycle * 0.5;
+
+            // 3. Physics
+            if (keys.ArrowLeft) playerX -= 0.25;
+            if (keys.ArrowRight) playerX += 0.25;
+            playerX = Math.max(-10, Math.min(10, playerX));
+            playerCar.position.x += (playerX - playerCar.position.x) * 0.2;
+            const tilt = (playerCar.position.x - playerX) * 0.4;
+            playerCar.rotation.z = tilt;
+            playerCar.rotation.y = -(playerCar.position.x - playerX) * 0.15;
+
+            // 4. Move World
+            roadTexture.offset.y -= speed * 0.03;
+
+            // Spawners
+            if (Math.random() < 0.03 + speed * 0.01) spawnEnemy(-300);
+            if (Math.random() < 0.02) spawnCollectible(-300);
+            if (Math.random() < 0.1) spawnScenery(-300);
+
+            // Update Enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.mesh.position.z += speed;
+
+                // Check for Near Miss
+                if (e.active && !e.nearMissed && e.mesh.position.z > playerCar.position.z && Math.abs(e.mesh.position.z - playerCar.position.z) < 2) {
+                    // Passed locally
+                    const dx = Math.abs(playerCar.position.x - e.mesh.position.x);
+                    if (dx > 1.5 && dx < 3.5) { // Close but no hit
+                        e.nearMissed = true;
+                        score += 200 * multiplier;
+                        multiplier += 0.2;
+                        showFloatingText("NEAR MISS", playerCar.position.x, 0, '#ffffff');
+                    }
+                }
+
+                // Collision
+                const dx = Math.abs(playerCar.position.x - e.mesh.position.x);
+                const dz = Math.abs(playerCar.position.z - e.mesh.position.z);
+
+                if (e.active && dx < 1.4 && dz < 3.0) {
+                    if (isNitroActive) {
+                        e.active = false;
+                        spawnExplosion(e.mesh.position.x, 1, e.mesh.position.z, 0xffaa00);
+                        scene.remove(e.mesh);
+                        enemies.splice(i, 1);
+                        score += 500 * multiplier;
+                        showFloatingText("SMASH!", playerCar.position.x, 0, '#ffaa00');
+                        multiplier += 0.1;
+                        camera.position.y += 0.5;
+                    } else {
+                        e.active = false;
+                        spawnExplosion(e.mesh.position.x, 1, e.mesh.position.z, 0xff0000);
+                        scene.remove(e.mesh);
+                        enemies.splice(i, 1);
+                        health--;
+                        multiplier = 1.0;
+                        speed *= 0.5;
+                        camera.position.y += 1;
+                        showFloatingText("DAMAGE", playerCar.position.x, 0, '#ff0000');
+                        if (health <= 0) gameOver();
+                    }
+                    continue;
+                }
+
+                if (e.mesh.position.z > 20) {
+                    scene.remove(e.mesh);
+                    enemies.splice(i, 1);
+                    score += 10 * multiplier;
+                    multiplier += 0.05;
+                }
+            }
+
+            if (multiplier > 10) multiplier = 10;
+
+            // Scenery
+            for (let i = scenery.length - 1; i >= 0; i--) {
+                const s = scenery[i];
+                s.mesh.position.z += speed;
+                if (s.mesh.position.z > 20) {
+                    scene.remove(s.mesh);
+                    scenery.splice(i, 1);
+                }
+            }
+
+            // Collectibles
+            for (let i = collectibles.length - 1; i >= 0; i--) {
+                const c = collectibles[i];
+                c.mesh.position.z += speed;
+                c.mesh.rotation.y += 0.1;
+
+                // Magnet
+                if (isNitroActive && c.active && c.mesh.position.z > -60 && c.mesh.position.z < 0) {
+                    c.mesh.position.x += (playerCar.position.x - c.mesh.position.x) * 0.1;
+                    c.mesh.position.z += 0.5; // Pull closer faster
+                }
+
+                if (c.active && playerCar.position.distanceTo(c.mesh.position) < 2.5) {
+                    c.active = false;
+                    scene.remove(c.mesh);
+                    collectibles.splice(i, 1);
+
+                    if (c.type === 'repair') {
+                        health = Math.min(3, health + 1);
+                        showFloatingText("REPAIR +1", playerCar.position.x, 0, '#00ff00');
+                        spawnExplosion(playerCar.position.x, 1, playerCar.position.z, 0x00ff00);
+                    } else {
+                        score += 500 * multiplier;
+                        nitro += 30;
+                        showFloatingText("NITRO UP", playerCar.position.x, 0, '#ffff00');
+                        spawnExplosion(c.mesh.position.x, 1, c.mesh.position.z, 0xffff00);
+                    }
+                    continue;
+                }
+                if (c.mesh.position.z > 10) {
+                    scene.remove(c.mesh);
+                    collectibles.splice(i, 1);
+                }
+            }
+
+            // Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.add(new THREE.Vector3(p.vx, p.vy, p.vz));
+                p.life -= 0.05;
+                p.mesh.scale.setScalar(p.life);
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Speed Lines
+            for (let i = speedLines.length - 1; i >= 0; i--) {
+                const l = speedLines[i];
+                l.position.z += speed * 2;
+                l.scale.z += 1;
+                if (l.position.z > 10) {
+                    scene.remove(l);
+                    speedLines.splice(i, 1);
+                }
+            }
+
+            // 5. Camera & UI
+            const targetFov = baseFov + (speed * 10) + (isNitroActive ? 15 : 0);
+            camera.fov += (targetFov - camera.fov) * 0.1;
+            camera.updateProjectionMatrix();
+
+            const targetCamX = playerCar.position.x * 0.5;
+            camera.position.x += (targetCamX - camera.position.x) * 0.1;
+            if (Math.abs(camera.position.y - 4) > 0.01) camera.position.y += (4 - camera.position.y) * 0.1;
+
+            updateUI();
+        }
+
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            document.getElementById('final-score').innerText = Math.floor(score);
+            document.getElementById('game-over-screen').classList.add('active');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+
+</html>
